@@ -78,9 +78,9 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
-  if (longURL) {
-    res.redirect(longURL.longURL);
+  const shortURL = urlDatabase[req.params.shortURL];
+  if (shortURL) {
+    res.redirect(shortURL.longURL);
   }
   res.status(404).send(`
   <h1>Error, 404</h1>
@@ -111,7 +111,7 @@ app.post("/urls", (req, res) => {
   if (!userId) {
     return res.status(401).send(`
     <h1>Error 401</h1>
-    <h2>Invalid authentication</h2>`);
+    <h2>You are not logged in</h2>`);
   }
   const shortURL = generateRandomString(6);
   urlDatabase[shortURL] = { longURL: req.body.longURL, userID: userId };
@@ -176,7 +176,6 @@ app.post('/register', (req, res) => {
   }
   const randomId = generateRandomString(6);
   users[randomId] = { id: randomId, email: req.body.email, password: bcrypt.hashSync(req.body.password, salt) };
-  // console.log(req.body);
   res.cookie('session', randomId);
   req.session.sessions = randomId,
     res.redirect('/urls');
