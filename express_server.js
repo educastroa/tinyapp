@@ -1,10 +1,10 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 const { generateRandomString } = require("./Helpers/userHelpers");
 const { urlsForUser } = require("./Helpers/userHelpers");
 const { verifyEmailPassword } = require("./Helpers/userHelpers");
-const { lookForEmail } = require("./Helpers/userHelpers");
+const { isEmailExists } = require("./Helpers/userHelpers");
 const bcrypt = require('bcrypt');
 const cookieSession = require('cookie-session');
 const bodyParser = require("body-parser");
@@ -72,7 +72,6 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  //let templateVars = { urls: urlDatabase };
   const userId = req.cookies['session'];
   let templateVars = { urls: urlsForUser(userId, urlDatabase), user: users[userId] };
   res.render("urls_index", templateVars);
@@ -90,7 +89,6 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  //res.render("urls_new");
   const userId = req.cookies['session'];
   let templateVars = { user: users[userId] };
   res.render('urls_new', templateVars);
@@ -99,19 +97,16 @@ app.get("/urls/new", (req, res) => {
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const userId = req.cookies['session'];
-  // const templateVars = { shortURL, longURL: urlDatabase[shortURL] };
   let templateVars = { shortURL, longURL: urlDatabase[shortURL].longURL, user: users[userId] };
-  if (userId) {
+  if (userId === urlDatabase[shortURL].userID) {
     res.render("urls_show", templateVars);
   }
-  res.redirect("/register");
+  return res.status(401).send(`
+    <h1>Error 401</h1>
+    <h2>You dont have access to this URL</h2>`);
 });
 
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  // res.send("Ok");         // Respond with 'Ok' (we will replace this)ookForEmail(email,
-  // const shortURL = req.params.shortURL
-  // const longURL = urlDatabase[shortURL].longURL
   const userId = req.cookies['session'];
   if (!userId) {
     return res.status(401).send(`
@@ -120,7 +115,7 @@ app.post("/urls", (req, res) => {
   }
   const shortURL = generateRandomString(6);
   urlDatabase[shortURL] = { longURL: req.body.longURL, userID: userId };
-  res.redirect(`/urls/${shortURL}`);
+  res.redirect(`/urls`);
 });
 
 app.post("/urls/:shortURL/delete", (req, res) => {
@@ -137,15 +132,24 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
-  res.redirect(`/urls/${shortURL}`);
+  const newURL = req.body.updatedURL;
+  const userId = req.cookies['session'];
+  if (userId !== urlDatabase[shortURL].userID) {
+    return res.status(401).send(`
+    <h1>Error 401</h1>
+    <h2>You cannot edit this page</h2>`);
+  }
+  urlDatabase[shortURL].longURL = newURL;
+  res.redirect("/urls");
 });
 
-// login added
 app.post('/login', (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
   if (verifyEmailPassword(email, password, users) === false) {
-    res.sendStatus(403);
+    return res.status(403).send(`
+    <h1>Error 403</h1>
+    <h2>Login information not found</h2>`);
   }
   res.cookie('session', verifyEmailPassword(email, password, users));
   req.session.sessions = verifyEmailPassword(email, password, users),
@@ -165,8 +169,10 @@ app.get("/register", (req, res) => {
 app.post('/register', (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
-  if (lookForEmail(email, password, users) === false) {
-    res.sendStatus(400);
+  if (isEmailExists(email, password, users) === false) {
+    return res.status(400).send(`
+    <h1>Error 400</h1>
+    <h2>Possible reasons: Email already taken or password field empty</h2>`);
   }
   const randomId = generateRandomString(6);
   users[randomId] = { id: randomId, email: req.body.email, password: bcrypt.hashSync(req.body.password, salt) };
@@ -175,4 +181,3 @@ app.post('/register', (req, res) => {
   req.session.sessions = randomId,
     res.redirect('/urls');
 });
-

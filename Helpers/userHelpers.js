@@ -23,7 +23,6 @@ function urlsForUser(id, data) {
 function verifyEmailPassword(reqEmail, reqPassword, users) {
   
   for (let id in users) {
-    // if (users[id].email === reqEmail && users[id].password === reqPassword) {
     if (users[id].email === reqEmail && bcrypt.compareSync(reqPassword, users[id].password) === true) {
       return id
     }
@@ -31,7 +30,7 @@ function verifyEmailPassword(reqEmail, reqPassword, users) {
   return false
 }
 
-function lookForEmail(reqEmail, reqPassword, users) {
+function isEmailExists(reqEmail, reqPassword, users) {
   
   if (reqEmail.length === 0 || reqPassword.length === 0) {
     return false;
@@ -47,5 +46,5 @@ module.exports = {
   generateRandomString,
   urlsForUser,
   verifyEmailPassword,
-  lookForEmail
+  isEmailExists
 }
